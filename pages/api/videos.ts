@@ -9,6 +9,8 @@ export const config = {
     }
 }
 
+const CHUNK_SIZE_IN_BYTES = 1000000 // ~1MB
+
 function uploadVideoStream(req: NextApiRequest, res: NextApiResponse) {
     const bb = busboy({headers: req.headers})
 
@@ -32,6 +34,39 @@ function uploadVideoStream(req: NextApiRequest, res: NextApiResponse) {
     return
 }
 
+function getVideoStream(req: NextApiRequest, res: NextApiResponse) {
+    const range = req.headers.range
+
+    if (!range) {
+        return res.status(400).send('Range must be provided!')
+    }
+    const videoId = req.query.videoId
+    const videoPath = `./videos/${videoId}.mp4`
+    const videoSizeInBytes = fs.statSync(videoPath).size
+
+    const chunkStart = Number(range.replace(/\D/g, ""))
+    const chunkEnd = Math.min(
+        chunkStart + CHUNK_SIZE_IN_BYTES,
+        videoSizeInBytes - 1
+    )
+    const contentLength = chunkEnd - chunkStart + 1
+
+    const headers = {
+        'Content-Range': `bytes ${chunkStart}-${chunkEnd}/${videoSizeInBytes}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': contentLength,
+        'Content-Type': "video/mp4",
+    }
+
+    res.writeHead(206, headers)
+    const videoStream = fs.createReadStream(videoPath, {
+        start: chunkStart,
+        end: chunkEnd
+    })
+
+    videoStream.pipe(res)
+}
+
 export default function handler(
     req: NextApiRequest,
     res: NextApiResponse
@@ -40,7 +75,7 @@ export default function handler(
     const method = req.method;
 
     if (method === 'GET') {
-        res.status(200).json({name: 'John Doe'})
+        getVideoStream(req, res)
     }
 
     if (method === 'POST') {

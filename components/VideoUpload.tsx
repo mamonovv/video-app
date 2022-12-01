@@ -1,5 +1,5 @@
 import React, {useState} from "react";
-import axios from "axios";
+import axios, {AxiosRequestConfig} from "axios";
 
 const VideoUpload = () => {
     const [file, setFile] = useState<File | undefined>()
@@ -7,7 +7,7 @@ const VideoUpload = () => {
     const [error, setError] = useState(null);
     const [submitting, setSubmitting] = useState(false);
 
-    const handleSubmit = async () => {
+    async function handleSubmit() {
         const data = new FormData()
 
         if (!file) return
@@ -16,13 +16,13 @@ const VideoUpload = () => {
 
         data.append('file', file)
 
-        const config = {
-            onUploadProgress: function (progressEvent: any) {
-                const percentComplete = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-
-                setProgress(percentComplete)
+        const config: AxiosRequestConfig = {
+            onUploadProgress: function (progressEvent) {
+                if (progressEvent.total) {
+                    const percentComplete = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+                    setProgress(percentComplete)
+                }
             }
-
         }
 
         try {
