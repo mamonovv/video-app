@@ -2,6 +2,7 @@
 import type {NextApiRequest, NextApiResponse} from 'next'
 import busboy from 'busboy'
 import * as fs from "fs";
+import CryptoJS from "crypto-js";
 
 export const config = {
     api: {
@@ -11,14 +12,27 @@ export const config = {
 
 const CHUNK_SIZE_IN_BYTES = 1000000 // ~1MB
 
+const getHashedFileName = (fileInfo: any) => {
+    const fileString = fileInfo.filename + fileInfo.encoding + fileInfo.mimeType
+
+    return CryptoJS.MD5(fileString).toString()
+}
+
+const getExtension = (fileName: string) => {
+    return fileName.split('.').reverse()[0]
+}
+
 function uploadVideoStream(req: NextApiRequest, res: NextApiResponse) {
     const bb = busboy({headers: req.headers})
+    let fileName = ''
 
     bb.on('file', (_, file, info) => {
 
-        //auth-api.mp4
-        const fileName = info.filename
-        const filePath = `./videos/${fileName}`
+        console.log(info);
+        fileName = getHashedFileName(info)
+
+        const fileExtension = getExtension(info.filename)
+        const filePath = `./videos/${fileName}.${fileExtension}`
 
         const stream = fs.createWriteStream(filePath)
 
@@ -27,7 +41,7 @@ function uploadVideoStream(req: NextApiRequest, res: NextApiResponse) {
 
     bb.on('close', () => {
         res.writeHead(200, {Connection: 'close'})
-        res.end("That's the end")
+        res.end(fileName)
     })
 
     req.pipe(bb)
